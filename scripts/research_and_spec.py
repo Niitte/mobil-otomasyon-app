@@ -18,15 +18,20 @@ if not GITHUB_TOKEN:
     sys.exit(1)
 
 def ask_gemini(prompt):
-    # Yoğunluk yaşamayan kararlı ve hafif motor
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={GEMINI_API_KEY}"
+    # En güncel ve kararlı iş motoru
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "thinkingConfig": {
+                "thinkingBudget": 0  # Hızlı yanıt için düşünme bütçesini optimize eder
+            }
+        }
     }
 
-    for attempt in range(3):
-        print(f"Gemini-3.5-flash-lite çağrılıyor (Deneme {attempt + 1}/3)...")
+    for attempt in range(4):
+        print(f"Gemini-3.7-flash çağrılıyor (Deneme {attempt + 1}/4)...")
         response = requests.post(url, headers=headers, json=payload)
         res_data = response.json()
 
@@ -34,7 +39,7 @@ def ask_gemini(prompt):
             return res_data['candidates'][0]['content']['parts'][0]['text']
 
         print(f"Sunucu yanıtı (Kod: {response.status_code}): {res_data}")
-        time.sleep(3)
+        time.sleep(4)
 
     print("HATA: İstek tamamlanamadı.")
     sys.exit(1)
