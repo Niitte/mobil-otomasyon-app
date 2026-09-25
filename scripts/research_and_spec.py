@@ -17,7 +17,7 @@ if not GITHUB_TOKEN:
     sys.exit(1)
 
 def ask_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
@@ -31,7 +31,7 @@ def ask_gemini(prompt):
         sys.exit(1)
         
     return res_data['candidates'][0]['content']['parts'][0]['text']
-
+    
 prompt = f"""
 Sen bir Kıdemli Mobil Yazılım Mimarı ve Araştırmacısısın.
 Fikir: {APP_IDEA}
