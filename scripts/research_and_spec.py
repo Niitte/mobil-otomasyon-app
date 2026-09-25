@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import sys
+import time
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
@@ -9,17 +10,16 @@ REPO = os.environ.get("GITHUB_REPOSITORY")
 APP_IDEA = os.environ.get("APP_IDEA", "Minimalist Pomodoro and Task Tracker")
 
 if not GEMINI_API_KEY:
-    print("HATA: GEMINI_API_KEY environment variable bulunamadı.")
+    print("HATA: GEMINI_API_KEY bulunamadı.")
     sys.exit(1)
 
 if not GITHUB_TOKEN:
     print("HATA: GITHUB_TOKEN bulunamadı.")
     sys.exit(1)
 
-import time
-
 def ask_gemini(prompt):
-    models = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro"]
+    # Kararlı modeller sırayla denenir
+    models = ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
@@ -28,31 +28,19 @@ def ask_gemini(prompt):
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
         for attempt in range(3):
-            print(f"Deneniyor: {model} (Deneme {attempt + 1})...")
+            print(f"Model deneniyor: {model} (Deneme {attempt + 1})...")
             response = requests.post(url, headers=headers, json=payload)
             res_data = response.json()
 
             if response.status_code == 200 and "candidates" in res_data:
                 return res_data['candidates'][0]['content']['parts'][0]['text']
 
-            # 503 veya rate limit gelirse bekle ve tekrar dene
-            if response.status_code in [503, 429]:
-                print(f"{model} yoğunlukta (503). 5 saniye bekleniyor...")
-                time.sleep(5)
-                continue
-            else:
-                print(f"{model} çağrısı başarısız: {res_data}")
-                break
+            print(f"{model} yanıt vermedi (Kod: {response.status_code}), tekrar deneniyor...")
+            time.sleep(3)
 
-    print("Hiçbir modelden yanıt alınamadı.")
+    print("HATA: Hiçbir modelden yanıt alınamadı.")
     sys.exit(1)
-    
-    if "candidates" not in res_data:
-        print(f"Gemini API Hatası: {res_data}")
-        sys.exit(1)
-        
-    return res_data['candidates'][0]['content']['parts'][0]['text']
-    
+
 prompt = f"""
 Sen bir Kıdemli Mobil Yazılım Mimarı ve Araştırmacısısın.
 Fikir: {APP_IDEA}
