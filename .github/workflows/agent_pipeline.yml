@@ -1,0 +1,40 @@
+name: Agent Pipeline v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_idea:
+        description: 'Geliştirilecek Uygulama Fikri'
+        required: true
+        default: 'Alışkanlık Takip ve İstatistik Uygulaması'
+
+jobs:
+  run_pipeline:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Python Kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Bağımlılıkları Yükle
+        run: pip install requests
+        
+      - name: Klasör ve Dosya Listesi (Debug)
+        run: |
+          echo "Ana dizin:"
+          ls -la
+          echo "Scripts klasörü:"
+          ls -la scripts/
+          
+      - name: Gemini Araştırma ve Jules Tetikleme
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_IDEA: ${{ inputs.app_idea }}
+        run: python scripts/research_and_spec.py
