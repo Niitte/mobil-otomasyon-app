@@ -1,0 +1,62 @@
+name: Autonomous Mobile Dev Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_idea:
+        description: 'Geliştirilecek Uygulama Fikri'
+        required: true
+        default: 'Alışkanlık Takip ve İstatistik Uygulaması'
+  pull_request:
+    types: [opened]
+
+jobs:
+  research_and_trigger:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Python Kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Bağımlılıkları Yükle
+        run: pip install requests
+        
+      - name: WhatsApp Bildirimi - Araştırma Başladı
+        run: |
+          MSG="🚀 *Pipeline Başlatıldı:* '${{ inputs.app_idea }}' için Gemini araştırmaya başladı."
+          curl -G "https://api.callmebot.com/whatsapp.php" \
+            --data-urlencode "phone=${{ secrets.WHATSAPP_PHONE }}" \
+            --data-urlencode "text=$MSG" \
+            --data-urlencode "apikey=${{ secrets.WHATSAPP_API_KEY }}"
+            
+      - name: Gemini Araştırma ve Jules Tetikleme
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_IDEA: ${{ inputs.app_idea }}
+        run: python scripts/research_and_spec.py
+        
+      - name: WhatsApp Bildirimi - Jules Devrede
+        run: |
+          MSG="📋 *Araştırma Tamamlandı!* Gemini mimariyi çıkardı, Issue açıldı. Google Jules kodlamaya başladı."
+          curl -G "https://api.callmebot.com/whatsapp.php" \
+            --data-urlencode "phone=${{ secrets.WHATSAPP_PHONE }}" \
+            --data-urlencode "text=$MSG" \
+            --data-urlencode "apikey=${{ secrets.WHATSAPP_API_KEY }}"
+
+  notify_pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: WhatsApp Bildirimi - PR Açıldı
+        run: |
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          MSG="✅ *Kod Hazır!* Jules kodlamayı ve testleri tamamladı. PR açıldı: $PR_URL"
+          curl -G "https://api.callmebot.com/whatsapp.php" \
+            --data-urlencode "phone=${{ secrets.WHATSAPP_PHONE }}" \
+            --data-urlencode "text=$MSG" \
+            --data-urlencode "apikey=${{ secrets.WHATSAPP_API_KEY }}"
