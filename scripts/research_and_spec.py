@@ -18,38 +18,34 @@ if not GITHUB_TOKEN:
     sys.exit(1)
 
 def ask_gemini(prompt):
-    # Yoğunluğa karşı sırayla denenecek model alternatifleri
-    models = [
-        "gemini-3.7-flash",
-        "gemini-3.8-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-2.5-flash"
-    ]
-    
+    # En stabil ve güncel üretim motoru
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    for model in models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-        for attempt in range(2):
-            print(f"Model deneniyor: {model} (Deneme {attempt + 1}/2)...")
-            try:
-                response = requests.post(url, headers=headers, json=payload, timeout=30)
-                res_data = response.json()
+    # 530/503 yoğunluk hatalarına karşı süreleri uzatarak 5 kez deneme
+    for attempt in range(5):
+        print(f"Gemini-3.5-flash çağrılıyor (Deneme {attempt + 1}/5)...")
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            res_data = response.json()
 
-                if response.status_code == 200 and "candidates" in res_data:
-                    print(f"Başarılı! Yanıt alınan model: {model}")
-                    return res_data['candidates'][0]['content']['parts'][0]['text']
-                
-                print(f"{model} yanıt veremedi (HTTP {response.status_code}): {res_data.get('error', {}).get('message', 'Bilinmeyen hata')}")
-            except Exception as e:
-                print(f"Bağlantı hatası ({model}): {str(e)}")
-            
-            time.sleep(3)
+            if response.status_code == 200 and "candidates" in res_data:
+                print("Yanıt başarıyla alındı.")
+                return res_data['candidates'][0]['content']['parts'][0]['text']
 
-    print("HATA: Yoğunluk nedeniyle hiçbir modelden yanıt alınamadı. Lütfen birkaç dakika sonra tekrar deneyin.")
+            print(f"Sunucu meşgul (HTTP {response.status_code}): {res_data}")
+        except Exception as e:
+            print(f"Bağlantı hatası: {str(e)}")
+
+        # Her başarısız denemede bekleme süresini artır (10sn, 20sn, 30sn...)
+        wait_time = (attempt + 1) * 10
+        print(f"Yoğunluk nedeniyle {wait_time} saniye bekleniyor...")
+        time.sleep(wait_time)
+
+    print("HATA: Sunucu yoğunluğu geçmedi. Lütfen 5 dakika sonra Actions sekmesinden tekrar 'Re-run jobs' deyin.")
     sys.exit(1)
 
 prompt = f"""
