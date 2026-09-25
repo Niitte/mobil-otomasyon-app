@@ -18,27 +18,28 @@ if not GITHUB_TOKEN:
     sys.exit(1)
 
 def ask_gemini(prompt):
-    # Kararlı modeller sırayla denenir
-    models = ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
+    # Doğru ve güncel model kimliği
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    for model in models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-        for attempt in range(3):
-            print(f"Model deneniyor: {model} (Deneme {attempt + 1})...")
-            response = requests.post(url, headers=headers, json=payload)
-            res_data = response.json()
+    # 503 yoğunluk hatalarına karşı 5 kez kademeli tekrar deneme (exponential backoff)
+    for attempt in range(5):
+        print(f"Gemini-3.8-flash çağrılıyor (Deneme {attempt + 1}/5)...")
+        response = requests.post(url, headers=headers, json=payload)
+        res_data = response.json()
 
-            if response.status_code == 200 and "candidates" in res_data:
-                return res_data['candidates'][0]['content']['parts'][0]['text']
+        if response.status_code == 200 and "candidates" in res_data:
+            return res_data['candidates'][0]['content']['parts'][0]['text']
 
-            print(f"{model} yanıt vermedi (Kod: {response.status_code}), tekrar deneniyor...")
-            time.sleep(3)
+        print(f"Sunucu yoğun (Kod: {response.status_code}). Yanıt: {res_data}")
+        wait_time = (attempt + 1) * 5  # 5s, 10s, 15s... artarak bekler
+        print(f"{wait_time} saniye bekleyip tekrar denenecek...")
+        time.sleep(wait_time)
 
-    print("HATA: Hiçbir modelden yanıt alınamadı.")
+    print("HATA: Yoğunluk geçmedi, max deneme sınırına ulaşıldı.")
     sys.exit(1)
 
 prompt = f"""
