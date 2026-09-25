@@ -16,15 +16,36 @@ if not GITHUB_TOKEN:
     print("HATA: GITHUB_TOKEN bulunamadı.")
     sys.exit(1)
 
+import time
+
 def ask_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    models = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro"]
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
-    
-    response = requests.post(url, headers=headers, json=payload)
-    res_data = response.json()
+
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        for attempt in range(3):
+            print(f"Deneniyor: {model} (Deneme {attempt + 1})...")
+            response = requests.post(url, headers=headers, json=payload)
+            res_data = response.json()
+
+            if response.status_code == 200 and "candidates" in res_data:
+                return res_data['candidates'][0]['content']['parts'][0]['text']
+
+            # 503 veya rate limit gelirse bekle ve tekrar dene
+            if response.status_code in [503, 429]:
+                print(f"{model} yoğunlukta (503). 5 saniye bekleniyor...")
+                time.sleep(5)
+                continue
+            else:
+                print(f"{model} çağrısı başarısız: {res_data}")
+                break
+
+    print("Hiçbir modelden yanıt alınamadı.")
+    sys.exit(1)
     
     if "candidates" not in res_data:
         print(f"Gemini API Hatası: {res_data}")
