@@ -18,30 +18,38 @@ if not GITHUB_TOKEN:
     sys.exit(1)
 
 def ask_gemini(prompt):
-    # En güncel ve kararlı iş motoru
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key={GEMINI_API_KEY}"
+    # Yoğunluğa karşı sırayla denenecek model alternatifleri
+    models = [
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash"
+    ]
+    
     headers = {"Content-Type": "application/json"}
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "thinkingConfig": {
-                "thinkingBudget": 0  # Hızlı yanıt için düşünme bütçesini optimize eder
-            }
-        }
+        "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    for attempt in range(4):
-        print(f"Gemini-3.7-flash çağrılıyor (Deneme {attempt + 1}/4)...")
-        response = requests.post(url, headers=headers, json=payload)
-        res_data = response.json()
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        for attempt in range(2):
+            print(f"Model deneniyor: {model} (Deneme {attempt + 1}/2)...")
+            try:
+                response = requests.post(url, headers=headers, json=payload, timeout=30)
+                res_data = response.json()
 
-        if response.status_code == 200 and "candidates" in res_data:
-            return res_data['candidates'][0]['content']['parts'][0]['text']
+                if response.status_code == 200 and "candidates" in res_data:
+                    print(f"Başarılı! Yanıt alınan model: {model}")
+                    return res_data['candidates'][0]['content']['parts'][0]['text']
+                
+                print(f"{model} yanıt veremedi (HTTP {response.status_code}): {res_data.get('error', {}).get('message', 'Bilinmeyen hata')}")
+            except Exception as e:
+                print(f"Bağlantı hatası ({model}): {str(e)}")
+            
+            time.sleep(3)
 
-        print(f"Sunucu yanıtı (Kod: {response.status_code}): {res_data}")
-        time.sleep(4)
-
-    print("HATA: İstek tamamlanamadı.")
+    print("HATA: Yoğunluk nedeniyle hiçbir modelden yanıt alınamadı. Lütfen birkaç dakika sonra tekrar deneyin.")
     sys.exit(1)
 
 prompt = f"""
