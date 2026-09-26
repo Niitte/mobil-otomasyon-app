@@ -18,34 +18,37 @@ if not GITHUB_TOKEN:
     sys.exit(1)
 
 def ask_gemini(prompt):
-    # En stabil ve güncel üretim motoru
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={GEMINI_API_KEY}"
+    # Sırayla denenecek farklı model alternatifleri
+    candidate_models = [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-3.5-flash",
+        "gemini-3.1-pro-preview"
+    ]
+    
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    # 530/503 yoğunluk hatalarına karşı süreleri uzatarak 5 kez deneme
-    for attempt in range(5):
-        print(f"Gemini-3.5-flash çağrılıyor (Deneme {attempt + 1}/5)...")
+    for model in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        print(f"Deneniyor: {model}...")
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response = requests.post(url, headers=headers, json=payload, timeout=40)
             res_data = response.json()
 
             if response.status_code == 200 and "candidates" in res_data:
-                print("Yanıt başarıyla alındı.")
+                print(f"Başarılı! Model yanıt verdi: {model}")
                 return res_data['candidates'][0]['content']['parts'][0]['text']
 
-            print(f"Sunucu meşgul (HTTP {response.status_code}): {res_data}")
+            print(f"{model} yanıt veremedi ({response.status_code}). Bir sonrakine geçiliyor...")
         except Exception as e:
-            print(f"Bağlantı hatası: {str(e)}")
+            print(f"{model} bağlantı hatası: {str(e)}")
 
-        # Her başarısız denemede bekleme süresini artır (10sn, 20sn, 30sn...)
-        wait_time = (attempt + 1) * 10
-        print(f"Yoğunluk nedeniyle {wait_time} saniye bekleniyor...")
-        time.sleep(wait_time)
+        time.sleep(2)
 
-    print("HATA: Sunucu yoğunluğu geçmedi. Lütfen 5 dakika sonra Actions sekmesinden tekrar 'Re-run jobs' deyin.")
+    print("HATA: Hiçbir modelden yanıt alınamadı.")
     sys.exit(1)
 
 prompt = f"""
